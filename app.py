@@ -375,7 +375,7 @@ hours = st.text_input("Please insert **Hours Worked**", placeholder="Example: 14
 st.markdown("<div style='height: 48px;'></div>", unsafe_allow_html=True)
 
 uploaded = st.file_uploader(
-    'Upload the Excel (.xlsx) file exported from "Staff Service Detail Report" from SmartCare',
+    'Upload the **Excel (.xlsx) file** exported from **"Staff Service Detail Report"** from SmartCare',
     type=["xlsx"],
     key=file_key
 )
