@@ -370,7 +370,8 @@ k = st.session_state["reset_counter"]
 hours_key = f"hours_{k}"
 file_key = f"uploaded_file_{k}"
 
-hours = st.text_input("Please insert Hours Worked", placeholder="Example: 148.13", key=hours_key)
+st.markdown("**Please insert Hours Worked**")
+hours = st.text_input("", placeholder="Example: 148.13", key=hours_key)
 uploaded = st.file_uploader(
     'Upload the Excel (.xlsx) file exported from "Staff Service Detail Report" from SmartCare',
     type=["xlsx"],
