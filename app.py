@@ -343,7 +343,6 @@ def print_final(res: Results) -> None:
 # -----------------------------
 st.set_page_config(page_title="Mike's Productivity/Unit Machine - Case Managers Only", layout="centered")
 st.title("Mike's Productivity/Unit Machine (v3) - Case Managers Only")
-st.caption("Upload StaffServiceDetail, enter Hours Worked, click Run. Hidden math by design. Verification enforced.")
 
 
 # Session init
