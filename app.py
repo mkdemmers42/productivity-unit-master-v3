@@ -107,7 +107,7 @@ def canonicalize_headers(cols: List[Any]) -> Dict[Any, str]:
             mapping[c] = "Face-to-Face Time"
             continue
 
-        mapping[c] = n  # normalized, but not canonical
+        mapping[c] = n
     return mapping
 
 
@@ -346,42 +346,45 @@ st.title("Mike's Productivity/Unit Machine (v3)")
 st.caption("Upload StaffServiceDetail, enter Hours Worked, click Run. Hidden math by design. Verification enforced.")
 
 
-# Session init for results storage
+# Session init
 if "last_result" not in st.session_state:
     st.session_state["last_result"] = None
 if "last_audit_payload" not in st.session_state:
     st.session_state["last_audit_payload"] = None
 if "last_error" not in st.session_state:
     st.session_state["last_error"] = None
-
-
-hours = st.text_input("Hours Worked", placeholder="Example: 148.13", key="hours")
-uploaded = st.file_uploader(
-    "Upload StaffServiceDetail Excel (.xlsx)",
-    type=["xlsx"],
-    key="uploaded_file"
-)
-
-col_run, col_reset = st.columns([1, 1])
-with col_run:
-    run = st.button("Run Calculation", type="primary")
-with col_reset:
-    reset = st.button("Run Another Staff Member")
-
-st.divider()
+if "reset_counter" not in st.session_state:
+    st.session_state["reset_counter"] = 0
 
 
 def do_reset() -> None:
-    st.session_state.pop("hours", None)
-    st.session_state.pop("uploaded_file", None)
+    # Changing widget keys is the reliable way to clear text_input + file_uploader
+    st.session_state["reset_counter"] += 1
     st.session_state["last_result"] = None
     st.session_state["last_audit_payload"] = None
     st.session_state["last_error"] = None
     st.rerun()
 
 
-if reset:
-    do_reset()
+# Widget keys that change after each reset
+k = st.session_state["reset_counter"]
+hours_key = f"hours_{k}"
+file_key = f"uploaded_file_{k}"
+
+hours = st.text_input("Hours Worked", placeholder="Example: 148.13", key=hours_key)
+uploaded = st.file_uploader(
+    "Upload StaffServiceDetail Excel (.xlsx)",
+    type=["xlsx"],
+    key=file_key
+)
+
+col_run, col_reset = st.columns([1, 1])
+with col_run:
+    run = st.button("Run Calculation", type="primary")
+with col_reset:
+    reset = st.button("Run Another Staff Member", on_click=do_reset)
+
+st.divider()
 
 
 if run:
@@ -423,13 +426,14 @@ if run:
 
     ok, mismatches = compare_results(pass1, pass2)
     if not ok:
-        st.session_state["last_error"] = "VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nMetric(s) mismatched:\n" + "\n".join(mismatches)
+        st.session_state["last_error"] = (
+            "VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nMetric(s) mismatched:\n" + "\n".join(mismatches)
+        )
         st.stop()
 
     # Store results for display
     st.session_state["last_result"] = pass1
-
-    payload = {
+    st.session_state["last_audit_payload"] = {
         "pass1": audit1,
         "pass2": audit2,
         "final": {
@@ -447,13 +451,10 @@ if run:
             "travel_pct": pass1.travel_pct,
         },
     }
-    st.session_state["last_audit_payload"] = payload
     st.rerun()
 
 
-# -----------------------------
-# Display section (results persist until reset)
-# -----------------------------
+# Display
 if st.session_state["last_error"]:
     st.error(st.session_state["last_error"])
 
