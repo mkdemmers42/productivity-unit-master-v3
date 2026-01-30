@@ -313,8 +313,8 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
 # -----------------------------
 # Streamlit UI (Hidden Math)
 # -----------------------------
-st.set_page_config(page_title="Productivity / Unit Mode (Master v3)", layout="centered")
-st.title("Productivity / Unit Mode — Master v3")
+st.set_page_config(page_title="Mike's Productivity/Unit Machine (v3)", layout="centered")
+st.title("Mike's Productivity/Unit Machine (v3"))
 st.caption("Web app: upload StaffServiceDetail, enter Hours Worked, get verified final results. Hidden math by design.")
 
 hours = st.text_input("Hours Worked", placeholder="Example: 148.13")
