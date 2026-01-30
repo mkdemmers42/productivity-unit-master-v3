@@ -391,10 +391,12 @@ if run:
             st.write(m)
         st.stop()
 
-    # Final output only
+        # Final output only
     print_final(pass1)
-        st.session_state["hours"] = ""
-        st.session_state["uploaded_file"] = None
+
+    st.session_state["hours"] = ""
+    st.session_state["uploaded_file"] = None
+
 
     # Optional audit download (hidden math stays off-screen)
     payload = {
