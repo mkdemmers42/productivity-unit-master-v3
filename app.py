@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
 # -----------------------------
 # App Config (MUST be first Streamlit call)
@@ -226,7 +227,7 @@ def canonicalize_headers(cols: List[Any]) -> Dict[Any, str]:
     return mapping
 
 # -----------------------------
-# Auto-header detection (blank row above headers fix)
+# Auto-header detection
 # -----------------------------
 def find_header_row_index_0_based(file_bytes: bytes, scan_rows: int = 40) -> int:
     bio = io.BytesIO(file_bytes)
@@ -250,10 +251,6 @@ def load_excel_auto_header(file_bytes: bytes, dtype=object) -> Tuple[pd.DataFram
     return df, header_idx
 
 def unit_grid(minutes: float) -> int:
-    """
-    Case Manager grid (as provided).
-    Ceiling at 16 for >232 in this implementation.
-    """
     if minutes is None or (isinstance(minutes, float) and math.isnan(minutes)):
         m = 0.0
     else:
@@ -306,36 +303,28 @@ def compute_pass(
 ) -> Results:
     minutes_worked_raw = hours_worked * 60.0
 
-    # Load (AUTO header detection)
     df, header_idx = load_excel_auto_header(file_bytes, dtype=object)
 
-    # Normalize / canonicalize headers
     original_cols = list(df.columns)
     mapping = canonicalize_headers(original_cols)
     df = df.rename(columns=mapping)
 
-    # Confirm required columns exist
     for col in REQUIRED_COLS_CANONICAL:
         if col not in df.columns:
             raise ValueError(f"MISSING REQUIRED COLUMN: {col}")
 
-    # Clean Procedure Code Name
     df["Procedure Code Name"] = df["Procedure Code Name"].astype(str).str.strip()
 
-    # Exclude rows containing "total"
     df = df[~df["Procedure Code Name"].str.contains("total", case=False, na=False)].copy()
 
-    # Numeric coercion + zero fill
     minute_cols = ["Travel Time", "Documentation Time", "Face-to-Face Time"]
     for c in minute_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
-    # Procedure code validation
     invalid = sorted(set(df["Procedure Code Name"].unique()) - VALID_CODES)
     if invalid:
         raise ValueError("INVALID PROCEDURE CODE(S) FOUND:\n" + "\n".join(invalid))
 
-    # Totals
     non_billable_total = int(
         df.loc[df["Procedure Code Name"].isin(NON_BILLABLE_FTF_CODES), "Face-to-Face Time"].sum()
     )
@@ -349,7 +338,6 @@ def compute_pass(
     billable_ftf = df.loc[df["Procedure Code Name"].isin(BILLABLE_FACE_TO_FACE_CODES), "Face-to-Face Time"]
     units_billed = int(billable_ftf.apply(unit_grid).sum())
 
-    # Percentages
     if minutes_worked_raw == 0:
         billable_minutes_pct = 0.0
         billable_units_pct = 0.0
@@ -437,7 +425,71 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
     return (len(mismatches) == 0, mismatches)
 
 # -----------------------------
-# Results Display (Metric Cards)
+# Pie Chart (Uses existing computed Results only)
+# -----------------------------
+def render_time_pie(res: Results) -> None:
+    total_minutes = float(res.minutes_worked)
+
+    # Use ONLY values already computed by your math engine
+    units_minutes = float(res.units_billed) * 15.0
+    non_billable_minutes = float(res.non_billable_total)
+    travel_minutes = float(res.travel_total)
+    documentation_minutes = float(res.documentation_total)
+
+    accounted_minutes = (
+        units_minutes +
+        non_billable_minutes +
+        travel_minutes +
+        documentation_minutes
+    )
+
+    other_minutes = max(0.0, total_minutes - accounted_minutes)
+
+    labels = [
+        "Units Time",
+        "Non-Billable",
+        "Drive Time",
+        "Documentation",
+        "Other / Unaccounted",
+    ]
+
+    values = [
+        units_minutes,
+        non_billable_minutes,
+        travel_minutes,
+        documentation_minutes,
+        other_minutes,
+    ]
+
+    # Requested palette
+    colors = [
+        "#16a34a",  # Green - Units
+        "#f97316",  # Orange - Non-billable
+        "#2563eb",  # Blue - Drive
+        "#eab308",  # Yellow - Documentation
+        "#dc2626",  # Red - Unaccounted
+    ]
+
+    filtered = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
+    if not filtered:
+        st.info("No time data available to chart.")
+        return
+
+    labels_f, values_f, colors_f = zip(*filtered)
+
+    fig, ax = plt.subplots()
+    ax.pie(
+        values_f,
+        labels=labels_f,
+        colors=colors_f,
+        autopct="%1.1f%%",
+        startangle=90
+    )
+    ax.axis("equal")
+    st.pyplot(fig)
+
+# -----------------------------
+# Results Display (Metric Cards + Pie)
 # -----------------------------
 def print_final(res: Results) -> None:
     st.success("VERIFICATION PASSED ✅")
@@ -475,6 +527,10 @@ def print_final(res: Results) -> None:
     c11, c12 = st.columns(2)
     c11.metric("Travel Total", f"{res.travel_total}")
     c12.metric("Travel %", f"{res.travel_pct}%")
+
+    st.markdown("---")
+    st.markdown("### Time Breakdown (Based on Hours Worked)")
+    render_time_pie(res)
 
 # -----------------------------
 # Streamlit UI (Hidden Math)
@@ -560,7 +616,6 @@ if run:
 
     file_bytes = uploaded.getvalue()
 
-    # PASS 1
     audit1: Dict[str, Any] = {}
     try:
         pass1 = compute_pass(hours_worked, file_bytes, audit=audit1)
@@ -569,7 +624,6 @@ if run:
     except Exception as e:
         fail(f"ERROR LOADING/PROCESSING FILE: {e}")
 
-    # PASS 2
     audit2: Dict[str, Any] = {}
     try:
         pass2 = compute_pass(hours_worked, file_bytes, audit=audit2)
