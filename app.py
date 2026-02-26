@@ -430,6 +430,7 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
 def render_time_pie(res: Results) -> None:
     total_minutes = float(res.minutes_worked)
 
+    # Use ONLY values already computed by your math engine
     units_minutes = float(res.units_billed) * 15.0
     non_billable_minutes = float(res.non_billable_total)
     travel_minutes = float(res.travel_total)
@@ -438,41 +439,57 @@ def render_time_pie(res: Results) -> None:
     accounted_minutes = units_minutes + non_billable_minutes + travel_minutes + documentation_minutes
     other_minutes = max(0.0, total_minutes - accounted_minutes)
 
-    # PROOF OF LIFE (if you see this, the function is running)
-    st.caption(
-        f"Pie inputs (minutes) → Units={units_minutes:.1f}, NonBill={non_billable_minutes:.1f}, "
-        f"Drive={travel_minutes:.1f}, Doc={documentation_minutes:.1f}, Other={other_minutes:.1f}"
-    )
+    df = pd.DataFrame({
+        "Category": [
+            "Units Time",
+            "Non-Billable",
+            "Drive Time",
+            "Documentation",
+            "Other / Unaccounted",
+        ],
+        "Minutes": [
+            units_minutes,
+            non_billable_minutes,
+            travel_minutes,
+            documentation_minutes,
+            other_minutes,
+        ],
+        "Color": [
+            "#16a34a",  # Units - green
+            "#f97316",  # Non-billable - orange
+            "#2563eb",  # Drive - blue
+            "#eab308",  # Documentation - yellow
+            "#dc2626",  # Unaccounted - red
+        ]
+    })
 
-    labels = ["Units Time", "Non-Billable", "Drive Time", "Documentation", "Other / Unaccounted"]
-    values = [units_minutes, non_billable_minutes, travel_minutes, documentation_minutes, other_minutes]
-    colors = ["#16a34a", "#f97316", "#2563eb", "#eab308", "#dc2626"]
-
-    filtered = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
-    if not filtered:
+    df = df[df["Minutes"] > 0].copy()
+    if df.empty:
         st.info("No time data available to chart.")
         return
 
-    labels_f, values_f, colors_f = zip(*filtered)
-
-    fig, ax = plt.subplots(figsize=(7, 7))
-    ax.set_facecolor("#0b1220")
-    fig.patch.set_facecolor("#0b1220")
-
-    wedges, texts, autotexts = ax.pie(
-        values_f,
-        labels=labels_f,
-        colors=colors_f,
-        autopct="%1.1f%%",
-        startangle=90,
-        textprops={"color": "#e6edf3"}
+    fig = px.pie(
+        df,
+        names="Category",
+        values="Minutes",
+        hole=0.0
     )
 
-    for t in autotexts:
-        t.set_color("#e6edf3")
+    # Apply your exact colors
+    fig.update_traces(
+        marker=dict(colors=df["Color"].tolist()),
+        textinfo="percent+label"
+    )
 
-    ax.axis("equal")
-    st.pyplot(fig, clear_figure=True)
+    # Make it match your dark theme
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#e6edf3"),
+        legend=dict(font=dict(color="#e6edf3"))
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------
 # Results Display (Metric Cards + Pie)
