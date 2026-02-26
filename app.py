@@ -7,9 +7,130 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import streamlit as st
 
+# -----------------------------
+# App Config (MUST be first Streamlit call)
+# -----------------------------
+APP_TITLE = "Mike's Productivity/Unit Machine (v3) - Case Managers Only"
+
+st.set_page_config(
+    page_title=APP_TITLE,
+    layout="centered"
+)
 
 # -----------------------------
-# MASTER v3 Configuration
+# UI: RED Blueprint Skin
+# -----------------------------
+def apply_red_blueprint_skin():
+    st.markdown("""
+    <style>
+      /* -------- Red blueprint background (subtle grid) -------- */
+      .stApp {
+        background-color: #0b1220;
+        background-image:
+          linear-gradient(rgba(239,68,68,0.07) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(239,68,68,0.07) 1px, transparent 1px),
+          radial-gradient(circle at 20% 10%, rgba(239,68,68,0.12), transparent 35%),
+          radial-gradient(circle at 80% 30%, rgba(248,113,113,0.10), transparent 40%);
+        background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
+        background-attachment: fixed;
+      }
+
+      /* -------- Sidebar (darker panel) -------- */
+      section[data-testid="stSidebar"] {
+        background: #091022;
+        border-right: 1px solid rgba(239,68,68,0.18);
+      }
+      section[data-testid="stSidebar"] * {
+        color: #e6edf3 !important;
+      }
+
+      /* -------- "Metal plate" header -------- */
+      .bp-header {
+        padding: 18px 18px 14px 18px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(17,26,46,0.92), rgba(9,16,34,0.92));
+        border: 1px solid rgba(239,68,68,0.24);
+        box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+        margin: 8px 0 14px 0;
+      }
+      .bp-header h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0.5px;
+        color: #e6edf3;
+      }
+      .bp-header p {
+        margin: 6px 0 0 0;
+        opacity: 0.85;
+        color: rgba(254,202,202,0.95);
+      }
+
+      /* -------- Card look for metric widgets -------- */
+      div[data-testid="stMetric"] {
+        background: rgba(17,26,46,0.78);
+        border: 1px solid rgba(239,68,68,0.18);
+        border-radius: 18px;
+        padding: 14px 14px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.30);
+      }
+      div[data-testid="stMetricLabel"] > div {
+        opacity: 0.85;
+        letter-spacing: 0.3px;
+      }
+      div[data-testid="stMetricValue"] > div {
+        letter-spacing: 0.6px;
+      }
+
+      /* -------- Inputs as panels -------- */
+      div[data-testid="stFileUploader"],
+      div[data-testid="stSelectbox"],
+      div[data-testid="stTextInput"],
+      div[data-testid="stNumberInput"] {
+        background: rgba(17,26,46,0.60);
+        border: 1px solid rgba(239,68,68,0.14);
+        border-radius: 16px;
+        padding: 10px 10px 6px 10px;
+      }
+
+      /* -------- Buttons: rounded + glow edge -------- */
+      .stButton > button {
+        border-radius: 14px;
+        padding: 0.65rem 1rem;
+        border: 1px solid rgba(239,68,68,0.38);
+        background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(17,26,46,0.80));
+        color: #e6edf3;
+        box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+      }
+      .stButton > button:hover {
+        border: 1px solid rgba(239,68,68,0.58);
+        filter: brightness(1.05);
+      }
+
+      /* -------- Expanders as panels -------- */
+      div[data-testid="stExpander"] {
+        background: rgba(17,26,46,0.55);
+        border: 1px solid rgba(239,68,68,0.14);
+        border-radius: 16px;
+      }
+
+      /* Reduce top padding a touch */
+      .block-container {
+        padding-top: 5rem;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+
+apply_red_blueprint_skin()
+
+st.markdown("""
+<div class="bp-header">
+  <h1>Mike’s Productivity / Unit Machine</h1>
+  <p>Life Made Easy • Case Managers Only</p>
+</div>
+""", unsafe_allow_html=True)
+
+# -----------------------------
+# MASTER v3 Configuration (Case Manager)
 # -----------------------------
 VALID_CODES = {
     "TCM/ICC",
@@ -48,7 +169,6 @@ REQUIRED_COLS_CANONICAL = [
 TOL_MINUTES_WORKED = 0.1
 TOL_PERCENT = 0.01
 
-
 # -----------------------------
 # Data Structures
 # -----------------------------
@@ -67,7 +187,6 @@ class Results:
     documentation_pct: float
     travel_pct: float
 
-
 # -----------------------------
 # Utility functions
 # -----------------------------
@@ -79,14 +198,7 @@ def normalize_header(value: Any) -> str:
     s = " ".join(s.split())
     return s.strip()
 
-
 def canonicalize_headers(cols: List[Any]) -> Dict[Any, str]:
-    """
-    MASTER v3 Header Normalization:
-    - Trim whitespace
-    - Convert line breaks to spaces
-    - Standardize face-to-face variants to canonical
-    """
     mapping: Dict[Any, str] = {}
     for c in cols:
         n = normalize_header(c)
@@ -104,7 +216,6 @@ def canonicalize_headers(cols: List[Any]) -> Dict[Any, str]:
             mapping[c] = "Documentation Time"
             continue
 
-        # Face-to-face variants
         ftf = low.replace("face to face", "face-to-face")
         ftf = ftf.replace("–", "-").replace("—", "-")
         if ftf == "face-to-face time":
@@ -114,15 +225,10 @@ def canonicalize_headers(cols: List[Any]) -> Dict[Any, str]:
         mapping[c] = n
     return mapping
 
-
 # -----------------------------
-# NEW: Auto-header detection (fixes "blank row above headers" issue)
+# Auto-header detection (blank row above headers fix)
 # -----------------------------
 def find_header_row_index_0_based(file_bytes: bytes, scan_rows: int = 40) -> int:
-    """
-    Finds the header row by scanning the first N rows for the presence of
-    'Procedure Code Name' (normalized). Returns 0-based row index.
-    """
     bio = io.BytesIO(file_bytes)
     preview = pd.read_excel(bio, header=None, nrows=scan_rows, dtype=object)
 
@@ -137,21 +243,16 @@ def find_header_row_index_0_based(file_bytes: bytes, scan_rows: int = 40) -> int
         "within the first rows of the spreadsheet."
     )
 
-
 def load_excel_auto_header(file_bytes: bytes, dtype=object) -> Tuple[pd.DataFrame, int]:
-    """
-    Loads Excel using auto-detected header row. Returns (df, header_row_index_0_based).
-    """
     header_idx = find_header_row_index_0_based(file_bytes)
-
     bio = io.BytesIO(file_bytes)
     df = pd.read_excel(bio, header=header_idx, dtype=dtype)
     return df, header_idx
 
-
 def unit_grid(minutes: float) -> int:
     """
-    MASTER v3 unit grid. Ceiling at 16 for >248.
+    Case Manager grid (as provided).
+    Ceiling at 16 for >232 in this implementation.
     """
     if minutes is None or (isinstance(minutes, float) and math.isnan(minutes)):
         m = 0.0
@@ -192,25 +293,17 @@ def unit_grid(minutes: float) -> int:
         return 15
     return 16
 
-
 def round_minutes_worked(m: float) -> float:
     return round(m, 1)
 
-
 def round_pct(p: float) -> float:
     return round(p, 2)
-
 
 def compute_pass(
     hours_worked: float,
     file_bytes: bytes,
     audit: Optional[Dict[str, Any]] = None,
 ) -> Results:
-    """
-    FULL WORKFLOW PASS: load -> clean -> compute
-    Header now auto-detected (supports both clean exports and ones with blank rows).
-    Hidden math: return results only; optionally record audit details.
-    """
     minutes_worked_raw = hours_worked * 60.0
 
     # Load (AUTO header detection)
@@ -232,7 +325,7 @@ def compute_pass(
     # Exclude rows containing "total"
     df = df[~df["Procedure Code Name"].str.contains("total", case=False, na=False)].copy()
 
-    # Numeric coercion + zero fill (NO EXCEPTIONS)
+    # Numeric coercion + zero fill
     minute_cols = ["Travel Time", "Documentation Time", "Face-to-Face Time"]
     for c in minute_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
@@ -248,11 +341,11 @@ def compute_pass(
     )
     documentation_total = int(df["Documentation Time"].sum())
     travel_total = int(df["Travel Time"].sum())
+
     minutes_billed = int(
         df.loc[df["Procedure Code Name"].isin(BILLABLE_FACE_TO_FACE_CODES), "Face-to-Face Time"].sum()
     )
 
-    # Units billed: apply grid per entry on billable rows; sum
     billable_ftf = df.loc[df["Procedure Code Name"].isin(BILLABLE_FACE_TO_FACE_CODES), "Face-to-Face Time"]
     units_billed = int(billable_ftf.apply(unit_grid).sum())
 
@@ -285,7 +378,6 @@ def compute_pass(
         travel_pct=round_pct(travel_pct),
     )
 
-    # Audit (saved only for download, not displayed)
     if audit is not None:
         audit["header_row_1_indexed"] = int(header_idx + 1)
         audit["original_columns"] = [str(c) for c in original_cols]
@@ -308,7 +400,6 @@ def compute_pass(
 
     return res
 
-
 def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
     mismatches: List[str] = []
 
@@ -321,7 +412,6 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
     if abs(p1.minutes_worked - p2.minutes_worked) > TOL_MINUTES_WORKED:
         mm("Minutes_Worked", p1.minutes_worked, p2.minutes_worked)
 
-    # exact match requirements
     if p1.minutes_billed != p2.minutes_billed:
         mm("Minutes_Billed", p1.minutes_billed, p2.minutes_billed)
     if p1.units_billed != p2.units_billed:
@@ -333,7 +423,6 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
     if p1.travel_total != p2.travel_total:
         mm("Travel_Time_Total", p1.travel_total, p2.travel_total)
 
-    # percentage tolerance
     pct_fields = [
         ("Billable_Minutes_Percentage", p1.billable_minutes_pct, p2.billable_minutes_pct),
         ("Billable_Units_Percentage", p1.billable_units_pct, p2.billable_units_pct),
@@ -347,39 +436,49 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
 
     return (len(mismatches) == 0, mismatches)
 
-
+# -----------------------------
+# Results Display (Metric Cards)
+# -----------------------------
 def print_final(res: Results) -> None:
     st.success("VERIFICATION PASSED ✅")
 
-    st.write(f"**Hours Worked:** {res.hours_worked}")
-    st.write(f"**Minutes Worked:** {res.minutes_worked}")
+    c1, c2 = st.columns(2)
+    c1.metric("Hours Worked", f"{res.hours_worked}")
+    c2.metric("Minutes Worked", f"{res.minutes_worked}")
 
-    st.write("")
-    st.write(f"**Minutes Billed:** {res.minutes_billed}")
-    st.write(f"**Billable Minutes Percentage:** {res.billable_minutes_pct}%")
+    st.markdown("")
 
-    st.write("")
-    st.write(f"**Units Billed:** {res.units_billed}")
-    st.write(f"**Billable Units Percentage:** {res.billable_units_pct}%")
+    c3, c4 = st.columns(2)
+    c3.metric("Minutes Billed", f"{res.minutes_billed}")
+    c4.metric("Billable Minutes %", f"{res.billable_minutes_pct}%")
 
-    st.write("")
-    st.write(f"**Non-Billable Total:** {res.non_billable_total}")
-    st.write(f"**Non-Billable Percentage:** {res.non_billable_pct}%")
+    st.markdown("")
 
-    st.write("")
-    st.write(f"**Documentation Time Total:** {res.documentation_total}")
-    st.write(f"**Documentation Percentage:** {res.documentation_pct}%")
+    c5, c6 = st.columns(2)
+    c5.metric("Units Billed", f"{res.units_billed}")
+    c6.metric("Billable Units %", f"{res.billable_units_pct}%")
 
-    st.write("")
-    st.write(f"**Travel Time Total:** {res.travel_total}")
-    st.write(f"**Travel Percentage:** {res.travel_pct}%")
+    st.markdown("")
 
+    c7, c8 = st.columns(2)
+    c7.metric("Non-Billable Total", f"{res.non_billable_total}")
+    c8.metric("Non-Billable %", f"{res.non_billable_pct}%")
+
+    st.markdown("")
+
+    c9, c10 = st.columns(2)
+    c9.metric("Documentation Total", f"{res.documentation_total}")
+    c10.metric("Documentation %", f"{res.documentation_pct}%")
+
+    st.markdown("")
+
+    c11, c12 = st.columns(2)
+    c11.metric("Travel Total", f"{res.travel_total}")
+    c12.metric("Travel %", f"{res.travel_pct}%")
 
 # -----------------------------
 # Streamlit UI (Hidden Math)
 # -----------------------------
-st.set_page_config(page_title="Mike's Productivity/Unit Machine - Case Managers Only", layout="centered")
-st.title("Mike's Productivity/Unit Machine (v3) - Case Managers Only")
 st.markdown("---")
 st.subheader("Need help running this app?")
 
@@ -402,8 +501,6 @@ if need_howto == "Yes":
     except FileNotFoundError:
         st.warning("How-To document file not found in the app repo. Tell Mike.")
 
-
-
 # Session init
 if "last_result" not in st.session_state:
     st.session_state["last_result"] = None
@@ -414,17 +511,12 @@ if "last_error" not in st.session_state:
 if "reset_counter" not in st.session_state:
     st.session_state["reset_counter"] = 0
 
-
 def do_reset() -> None:
-    # Changing widget keys is the reliable way to clear text_input + file_uploader
     st.session_state["reset_counter"] += 1
     st.session_state["last_result"] = None
     st.session_state["last_audit_payload"] = None
     st.session_state["last_error"] = None
-    st.rerun()
 
-
-# Widget keys that change after each reset
 k = st.session_state["reset_counter"]
 hours_key = f"hours_{k}"
 file_key = f"uploaded_file_{k}"
@@ -447,22 +539,24 @@ with col_reset:
 
 st.divider()
 
+def fail(msg: str) -> None:
+    msg = (msg or "").strip()
+    if not msg.endswith("Tell Mike."):
+        msg = f"{msg}\n\nTell Mike."
+    st.session_state["last_error"] = msg
+    st.error(msg)
+    st.stop()
 
 if run:
     st.session_state["last_error"] = None
 
-    # Hours validation (failsafe)
     try:
         hours_worked = float((hours or "").strip())
     except Exception:
-        st.session_state["last_error"] = "Please enter Hours Worked as a number only (example: 128.4)."
-        st.stop()
+        fail("Please enter Hours Worked as a number only (example: 128.4).")
 
     if uploaded is None:
-        st.session_state["last_error"] = (
-            "Please upload the Excel spreadsheet containing staff's 'Billed' and 'Non-Billable' numbers."
-        )
-        st.stop()
+        fail("Please upload the Excel spreadsheet containing staff's 'Billed' and 'Non-Billable' numbers.")
 
     file_bytes = uploaded.getvalue()
 
@@ -471,28 +565,24 @@ if run:
     try:
         pass1 = compute_pass(hours_worked, file_bytes, audit=audit1)
     except ValueError as e:
-        st.session_state["last_error"] = str(e)
-        st.stop()
+        fail(str(e))
     except Exception as e:
-        st.session_state["last_error"] = f"ERROR LOADING/PROCESSING FILE: {e}"
-        st.stop()
+        fail(f"ERROR LOADING/PROCESSING FILE: {e}")
 
-    # PASS 2 (verification recompute from scratch)
+    # PASS 2
     audit2: Dict[str, Any] = {}
     try:
         pass2 = compute_pass(hours_worked, file_bytes, audit=audit2)
     except Exception as e:
-        st.session_state["last_error"] = f"VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nReason: {e}"
-        st.stop()
+        fail(f"VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nReason: {e}")
 
     ok, mismatches = compare_results(pass1, pass2)
     if not ok:
-        st.session_state["last_error"] = (
-            "VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nMetric(s) mismatched:\n" + "\n".join(mismatches)
+        fail(
+            "VERIFICATION FAILED — RESULTS NOT TRUSTWORTHY\n\nMetric(s) mismatched:\n"
+            + "\n".join(mismatches)
         )
-        st.stop()
 
-    # Store results for display
     st.session_state["last_result"] = pass1
     st.session_state["last_audit_payload"] = {
         "pass1": audit1,
@@ -514,8 +604,6 @@ if run:
     }
     st.rerun()
 
-
-# Display
 if st.session_state["last_error"]:
     st.error(st.session_state["last_error"])
 
