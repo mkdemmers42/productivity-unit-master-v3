@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 
 # -----------------------------
 # App Config (MUST be first Streamlit call)
@@ -371,12 +372,11 @@ def compare_results(p1: Results, p2: Results) -> Tuple[bool, List[str]]:
     return (len(mismatches) == 0, mismatches)
 
 # -----------------------------
-# Pie Chart (based on existing computed Results only)
+# 3D-Style Pie Chart (two-layer illusion)
 # -----------------------------
-def render_time_pie(res: Results) -> None:
+def render_time_pie_3d(res: Results) -> None:
     total_minutes = float(res.minutes_worked)
 
-    # Use ONLY values already computed by your math engine
     units_minutes = float(res.units_billed) * 15.0
     non_billable_minutes = float(res.non_billable_total)
     travel_minutes = float(res.travel_total)
@@ -400,7 +400,6 @@ def render_time_pie(res: Results) -> None:
         other_minutes,
     ]
 
-    # Requested palette (TOP layer)
     colors_top = [
         "#16a34a",  # Units - green
         "#f97316",  # Non-billable - orange
@@ -409,7 +408,6 @@ def render_time_pie(res: Results) -> None:
         "#dc2626",  # Unaccounted - red
     ]
 
-    # Filter out zero slices
     filtered = [(l, v, c) for l, v, c in zip(labels, values, colors_top) if v > 0]
     if not filtered:
         st.info("No time data available to chart.")
@@ -417,9 +415,7 @@ def render_time_pie(res: Results) -> None:
 
     labels_f, values_f, colors_top_f = zip(*filtered)
 
-    # --- helper to darken hex for "depth" layer ---
     def darken_hex(hex_color: str, factor: float = 0.55) -> str:
-        # factor < 1 = darker
         h = hex_color.lstrip("#")
         r = int(h[0:2], 16)
         g = int(h[2:4], 16)
@@ -431,47 +427,34 @@ def render_time_pie(res: Results) -> None:
 
     colors_bottom_f = [darken_hex(c, 0.55) for c in colors_top_f]
 
-    # Build dataframe just for Plotly convenience
-    df = pd.DataFrame({"Category": labels_f, "Minutes": values_f})
+    fig = go.Figure()
 
-    # --- 3D illusion: two pies, bottom shifted down slightly ---
-    fig = px.pie(df, names="Category", values="Minutes", hole=0.0)
-    fig.data = []  # clear px default trace so we can add custom traces
-
-    import plotly.graph_objects as go
-
-    # Bottom (depth) layer
+    # Bottom depth layer (shifted down)
     fig.add_trace(go.Pie(
         labels=labels_f,
         values=values_f,
-        hole=0.0,
         textinfo="none",
         sort=False,
         marker=dict(colors=colors_bottom_f, line=dict(color="rgba(0,0,0,0.35)", width=1)),
-        # domain shifted down makes it look like thickness
-        domain=dict(x=[0.0, 1.0], y=[0.0, 0.92]),
+        domain=dict(x=[0.0, 1.0], y=[0.0, 0.90]),
         rotation=90,
         showlegend=False,
+        hoverinfo="skip",
     ))
 
     # Top layer
     fig.add_trace(go.Pie(
         labels=labels_f,
         values=values_f,
-        hole=0.0,
         textinfo="percent+label",
         textposition="outside",
         sort=False,
-        marker=dict(
-            colors=list(colors_top_f),
-            line=dict(color="rgba(255,255,255,0.18)", width=2)  # subtle “lit” edge
-        ),
-        domain=dict(x=[0.0, 1.0], y=[0.06, 1.0]),  # slightly higher than bottom
+        marker=dict(colors=list(colors_top_f), line=dict(color="rgba(255,255,255,0.18)", width=2)),
+        domain=dict(x=[0.0, 1.0], y=[0.07, 1.0]),
         rotation=90,
         showlegend=True,
     ))
 
-    # Dark-theme polish
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -481,6 +464,45 @@ def render_time_pie(res: Results) -> None:
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+# -----------------------------
+# Results Display (Metric Cards + Pie)
+# -----------------------------
+def print_final(res: Results) -> None:
+    st.success("VERIFICATION PASSED ✅")
+
+    c1, c2 = st.columns(2)
+    c1.metric("Hours Worked", f"{res.hours_worked}")
+    c2.metric("Minutes Worked", f"{res.minutes_worked}")
+
+    st.markdown("")
+    c3, c4 = st.columns(2)
+    c3.metric("Minutes Billed", f"{res.minutes_billed}")
+    c4.metric("Billable Minutes %", f"{res.billable_minutes_pct}%")
+
+    st.markdown("")
+    c5, c6 = st.columns(2)
+    c5.metric("Units Billed", f"{res.units_billed}")
+    c6.metric("Billable Units %", f"{res.billable_units_pct}%")
+
+    st.markdown("")
+    c7, c8 = st.columns(2)
+    c7.metric("Non-Billable Total", f"{res.non_billable_total}")
+    c8.metric("Non-Billable %", f"{res.non_billable_pct}%")
+
+    st.markdown("")
+    c9, c10 = st.columns(2)
+    c9.metric("Documentation Total", f"{res.documentation_total}")
+    c10.metric("Documentation %", f"{res.documentation_pct}%")
+
+    st.markdown("")
+    c11, c12 = st.columns(2)
+    c11.metric("Travel Total", f"{res.travel_total}")
+    c12.metric("Travel %", f"{res.travel_pct}%")
+
+    st.markdown("---")
+    st.markdown("### Time Breakdown (Based on Hours Worked)")
+    render_time_pie_3d(res)
 
 # -----------------------------
 # Streamlit UI (Hidden Math)
