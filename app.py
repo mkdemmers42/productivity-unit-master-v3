@@ -23,17 +23,26 @@ st.set_page_config(
 # -----------------------------
 def apply_red_blueprint_skin():
     st.markdown("""
-    <style>
-      .stApp {
-        background-color: #0b1220;
-        background-image:
-          linear-gradient(rgba(239,68,68,0.07) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(239,68,68,0.07) 1px, transparent 1px),
-          radial-gradient(circle at 20% 10%, rgba(239,68,68,0.12), transparent 35%),
-          radial-gradient(circle at 80% 30%, rgba(248,113,113,0.10), transparent 40%);
-        background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
-        background-attachment: fixed;
-      }
+<style>
+
+/* Import Modern Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+/* Apply Font Globally */
+html, body, [class*="css"]  {
+    font-family: 'Inter', sans-serif !important;
+}
+
+.stApp {
+    background-color: #0b1220;
+    background-image:
+      linear-gradient(rgba(239,68,68,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(239,68,68,0.07) 1px, transparent 1px),
+      radial-gradient(circle at 20% 10%, rgba(239,68,68,0.12), transparent 35%),
+      radial-gradient(circle at 80% 30%, rgba(248,113,113,0.10), transparent 40%);
+    background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
+    background-attachment: fixed;
+}
 
       section[data-testid="stSidebar"] {
         background: #091022;
@@ -391,28 +400,28 @@ def render_time_pie(res: Results) -> None:
     other_minutes = max(0.0, total_minutes - accounted_minutes)
 
     df = pd.DataFrame({
-        "Category": [
-            "Units Time",
-            "Non-Billable",
-            "Drive Time",
-            "Documentation",
-            "Other / Unaccounted",
-        ],
-        "Minutes": [
-            units_minutes,
-            non_billable_minutes,
-            travel_minutes,
-            documentation_minutes,
-            other_minutes,
-        ],
-        "Color": [
-            "#16a34a",
-            "#f97316",
-            "#2563eb",
-            "#eab308",
-            "#dc2626",
-        ],
-    })
+    "Category": [
+        "Units Billed",
+        "Non-Billable",
+        "Drive Time",
+        "Documentation",
+        "Unaccounted Time",
+    ],
+    "Minutes": [
+        units_minutes,
+        non_billable_minutes,
+        travel_minutes,
+        documentation_minutes,
+        other_minutes,
+    ],
+    "Color": [
+        "#16a34a",
+        "#f97316",
+        "#2563eb",
+        "#eab308",
+        "#dc2626",
+    ],
+})
 
     df = df[df["Minutes"] > 0].copy()
     if df.empty:
